@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Rental Business - Financial Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        body {
+            background-color: #F7F9FB;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333333;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .kpi-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+        }
+
+        .kpi-label {
+            font-size: 1rem;
+            color: #6B7280;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2F528F;
+            border-bottom: 2px solid #8FAADC;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .accordion-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .table-input {
+            width: 100%;
+            text-align: right;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            box-sizing: border-box;
+        }
+        .llm-output {
+            background-color: #f0f4f8;
+            border-left: 4px solid #2F528F;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            margin-top: 1rem;
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #2F528F;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gray-800">Fleet Operations Financial Projection</h1>
+            <p class="text-lg text-gray-600 mt-2">A 3-Year Forecast for a 100-Vehicle Fleet</p>
+        </header>
+
+        <!-- Key Metrics Dashboard -->
+        <section id="kpi-section" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-center">
+            <div class="card">
+                <p class="kpi-label">Total Project Cost (3 Yrs)</p>
+                <p id="total-cost" class="kpi-value text-red-600">₹0</p>
+            </div>
+            <div class="card">
+                <p class="kpi-label">Total Projected Revenue (3 Yrs)</p>
+                <p id="total-revenue" class="kpi-value text-green-600">₹0</p>
+            </div>
+            <div class="card">
+                <p class="kpi-label">Projected Net Profit (3 Yrs)</p>
+                <p id="net-profit" class="kpi-value text-blue-600">₹0</p>
+            </div>
+             <div class="card">
+                <p class="kpi-label">Monthly Operating Cost</p>
+                <p id="monthly-cost" class="kpi-value text-orange-500">₹0</p>
+            </div>
+        </section>
+
+        <!-- Interactive Controls -->
+        <section class="card mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Scenario Planner</h2>
+            <p class="text-gray-600 mb-4">Use the slider to adjust the number of vehicles in the fleet and see how it impacts the financial projections in real-time.</p>
+            <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8">
+                <div class="flex-1 w-full">
+                    <label for="vehicle-slider" class="block text-sm font-medium text-gray-700 mb-1">Number of Vehicles: <span id="vehicle-count-display" class="font-bold text-blue-600 text-lg">100</span></o-label>
+                    <input id="vehicle-slider" type="range" min="10" max="500" value="100" step="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Visualizations -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-2">Total Cost Breakdown</h2>
+                <p class="text-sm text-gray-500 mb-4">This chart illustrates the proportion of each major expense category over the 3-year project lifespan.</p>
+                <div class="chart-container relative h-80 w-full mx-auto" style="max-width: 400px;">
+                    <canvas id="costBreakdownChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-2">Revenue vs. Cost Over Time</h2>
+                <p class="text-sm text-gray-500 mb-4">This chart projects the cumulative revenue and costs over 36 months, highlighting the path to profitability.</p>
+                <div class="chart-container relative h-80 w-full mx-auto" style="max-width: 600px;">
+                    <canvas id="revenueCostChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Tables -->
+        <section class="space-y-6">
+            <div class="card">
+                <div class="accordion-header" onclick="toggleAccordion('manpower-details-content')">
+                    <h2 class="text-xl font-semibold mb-0">Manpower Cost Details</h2>
+                    <span id="manpower-details-icon" class="text-2xl font-bold text-blue-500 transform transition-transform duration-300">+</span>
+                </div>
+                <div id="manpower-details-content" class="accordion-content mt-4 overflow-x-auto">
+                    <p class="text-sm text-gray-600 mb-3">The table below itemizes the monthly and total 3-year costs for all personnel required for the operation. Edit 'Count' and 'Salary/Month' to see immediate impact.</p>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Salary/Month</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Monthly Cost</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total 3-Year Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manpower-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="accordion-header" onclick="toggleAccordion('maintenance-details-content')">
+                    <h2 class="text-xl font-semibold mb-0">Fleet Maintenance Cost Breakdown</h2>
+                    <span id="maintenance-details-icon" class="text-2xl font-bold text-blue-500 transform transition-transform duration-300">+</span>
+                </div>
+                <div id="maintenance-details-content" class="accordion-content mt-4 overflow-x-auto">
+                    <p class="text-sm text-gray-600 mb-3">This table details the total costs for the entire fleet associated with each maintenance item over the 3-year operational period. Edit the per-unit cost to update.</p>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost Item</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase-tracking-wider">Per-Unit Cost (for calculation)</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase-tracking-wider">Total Fleet Cost (3 Years)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="maintenance-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI-Powered Insights Section -->
+        <section class="card mt-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">AI-Powered Insights</h2>
+            <p class="text-gray-600 mb-4">Leverage AI to gain deeper insights into your financial data and explore optimization strategies.</p>
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <button id="generate-summary-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+                    ✨ Generate Financial Summary
+                </button>
+                <button id="suggest-optimization-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+                    ✨ Suggest Cost Optimization
+                </button>
+            </div>
+            <div id="llm-output-container" class="hidden">
+                <div id="llm-loading" class="text-center text-gray-500 hidden">
+                    <div class="loading-spinner"></div> Generating insight...
+                </div>
+                <div id="llm-response" class="llm-output"></div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialVehicleCount = 100;
+            let config = {
+                durationYears: 3,
+                monthsInYear: 12,
+                weeksInMonth: 4.33,
+                costs: {
+                    vehicle: 100000,
+                    chargingPerMonth: 3000,
+                    maintenancePerMonth: 500, // This is monthly per vehicle
+                    battery: 60000, // Per vehicle for 3 years
+                    tyre: 4000, // Per vehicle for 3 years
+                    insurancePerYear: 5000, // Per vehicle per year
+                    vtsInitial: 3000, // Per vehicle one-time
+                    vtsMonthly: 999, // Per vehicle per month
+                    commercialTax: 3000, // Per vehicle one-time
+                    technology: 1000000 // One-time, fixed
+                },
+                manpower: {
+                    'Operations Manager': { count: 2, salary: 50000 },
+                    'Operations Executive': { count: 4, salary: 25000 },
+                    'Rental Operations': { count: 4, salary: 25000 },
+                    'Service Head': { count: 5, salary: 25000 },
+                    'Service Technician': { count: 2, salary: 17000 },
+                    'Breakdown Maintenance': { count: 2, salary: 17000 },
+                    'Business Development Manager': { count: 1, salary: 50000 },
+                    'Data Analyst': { count: 1, salary: 50000 },
+                    'Customer Care': { count: 2, salary: 20000 }
+                },
+                revenue: {
+                    rentalPerVehiclePerMonth: 6000,
+                    raiderPerVehiclePerMonth: 36000
+                }
+            };
+
+            let costChart, revenueChart;
+
+            const formatCurrency = (value) => {
+                if (typeof value !== 'number') {
+                    return 'N/A'; // Handle non-numeric values gracefully
+                }
+                if (Math.abs(value) >= 10000000) {
+                    return `₹${(value / 10000000).toFixed(2)} Cr`;
+                }
+                if (Math.abs(value) >= 100000) {
+                    return `₹${(value / 100000).toFixed(2)} L`;
+                }
+                return `₹${value.toLocaleString('en-IN')}`;
+            };
+            
+            const calculateFinancials = (numVehicles) => {
+                const totalMonths = config.durationYears * config.monthsInYear;
+
+                const capex = numVehicles * config.costs.vehicle;
+                const totalChargingCost = numVehicles * config.costs.chargingPerMonth * totalMonths;
+                
+                const totalMaintenanceCost = (
+                    (config.costs.maintenancePerMonth * totalMonths) +
+                    config.costs.battery +
+                    config.costs.tyre +
+                    (config.costs.insurancePerYear * config.durationYears) +
+                    config.costs.vtsInitial +
+                    (config.costs.vtsMonthly * totalMonths) +
+                    config.costs.commercialTax
+                ) * numVehicles;
+
+                const totalManpowerCost = Object.values(config.manpower)
+                    .reduce((sum, role) => sum + (role.count * role.salary), 0) * totalMonths;
+
+                const totalCost = capex + totalChargingCost + totalMaintenanceCost + totalManpowerCost + config.costs.technology;
+
+                const totalRentalIncome = numVehicles * config.revenue.rentalPerVehiclePerMonth * totalMonths;
+                const totalRaiderIncome = numVehicles * config.revenue.raiderPerVehiclePerMonth * totalMonths;
+                const totalRevenue = totalRentalIncome + totalRaiderIncome;
+                
+                const profitLoss = totalRevenue - totalCost;
+
+                return {
+                    capex,
+                    totalChargingCost,
+                    totalMaintenanceCost,
+                    totalManpowerCost,
+                    technologyCost: config.costs.technology,
+                    totalCost,
+                    totalRevenue,
+                    profitLoss,
+                    monthlyCost: totalCost / totalMonths,
+                };
+            };
+            
+            const updateUI = (numVehicles) => {
+                const data = calculateFinancials(numVehicles);
+
+                document.getElementById('total-cost').textContent = formatCurrency(data.totalCost);
+                document.getElementById('total-revenue').textContent = formatCurrency(data.totalRevenue);
+                document.getElementById('net-profit').textContent = formatCurrency(data.profitLoss);
+                document.getElementById('monthly-cost').textContent = formatCurrency(data.monthlyCost);
+                
+                updateCharts(data, numVehicles);
+                updateTables(data, numVehicles); // This function now handles re-attaching listeners
+            };
+
+            const updateCharts = (data, numVehicles) => {
+                costChart.data.datasets[0].data = [
+                    data.capex,
+                    data.totalMaintenanceCost,
+                    data.totalChargingCost,
+                    data.totalManpowerCost,
+                    data.technologyCost
+                ];
+                costChart.update();
+                
+                const totalMonths = config.durationYears * config.monthsInYear;
+                const monthlyRevenue = (numVehicles * config.revenue.rentalPerVehiclePerMonth) + (numVehicles * config.revenue.raiderPerVehiclePerMonth);
+                
+                const monthlyPerVehicleMaintenanceCost = (config.costs.maintenancePerMonth * totalMonths) + config.costs.battery + config.costs.tyre + (config.costs.insurancePerYear * config.durationYears) + config.costs.vtsInitial + (config.costs.vtsMonthly * totalMonths) + config.costs.commercialTax;
+                
+                const monthlyCapex = (numVehicles * config.costs.vehicle) / totalMonths;
+                const monthlyCharging = (numVehicles * config.costs.chargingPerMonth * totalMonths) / totalMonths;
+                const monthlyMaintenance = (monthlyPerVehicleMaintenanceCost * numVehicles) / totalMonths;
+                const monthlyManpower = Object.values(config.manpower).reduce((sum, role) => sum + (role.count * role.salary), 0);
+                const monthlyTech = config.costs.technology / totalMonths;
+                
+                const monthlyTotalCost = monthlyCapex + monthlyCharging + monthlyMaintenance + monthlyManpower + monthlyTech;
+                
+                const cumulativeRevenueData = Array.from({ length: totalMonths }, (_, i) => monthlyRevenue * (i + 1));
+                const cumulativeCostData = Array.from({ length: totalMonths }, (_, i) => monthlyTotalCost * (i + 1));
+                const monthsLabels = Array.from({ length: totalMonths }, (_, i) => `Month ${i + 1}`);
+
+                revenueChart.data.labels = monthsLabels;
+                revenueChart.data.datasets[0].data = cumulativeRevenueData;
+                revenueChart.data.datasets[1].data = cumulativeCostData;
+                revenueChart.update();
+            };
+            
+            const updateTables = (data, numVehicles) => {
+                const manpowerTableBody = document.getElementById('manpower-table-body');
+                // Build all rows first
+                let rows = [];
+                let currentTotalMonthlyManpower = 0;
+                Object.entries(config.manpower).forEach(([role, details]) => {
+                    const monthly = details.count * details.salary;
+                    currentTotalMonthlyManpower += monthly;
+                    const safeRoleId = role.replace(/\s+/g, '-').toLowerCase();
+                    rows.push(`
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${role}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                                <input type="number" class="table-input w-20" value="${details.count}" data-role="${role}" data-field="count">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                                <input type="number" class="table-input w-32" value="${details.salary}" data-role="${role}" data-field="salary">
+                            </td>
+                            <td id="monthly-cost-${safeRoleId}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${monthly.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                            <td id="threeyear-cost-${safeRoleId}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${(monthly * 36).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                        </tr>`);
+                });
+                // Add total row at the end
+                rows.push(`<tr class="bg-gray-50 font-bold"><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Total</td><td></td><td></td><td id="manpower-total-monthly" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${currentTotalMonthlyManpower.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td><td id="manpower-total-3year" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${(currentTotalMonthlyManpower * 36).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td></tr>`);
+                manpowerTableBody.innerHTML = rows.join('');
+                // Attach event listeners for manpower inputs AFTER they are added to DOM
+                manpowerTableBody.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('input', (event) => {
+                        const role = event.target.dataset.role;
+                        const field = event.target.dataset.field;
+                        const newValue = parseFloat(event.target.value);
+                        if (!isNaN(newValue) && newValue >= 0) {
+                            config.manpower[role][field] = newValue;
+                            // Update only the affected row and total in real time
+                            const details = config.manpower[role];
+                            const monthly = details.count * details.salary;
+                            const safeRoleId = role.replace(/\s+/g, '-').toLowerCase();
+                            document.getElementById(`monthly-cost-${safeRoleId}`).textContent = monthly.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+                            document.getElementById(`threeyear-cost-${safeRoleId}`).textContent = (monthly * 36).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+                            // Update total row
+                            let totalMonthly = 0;
+                            Object.values(config.manpower).forEach(d => { totalMonthly += d.count * d.salary; });
+                            document.getElementById('manpower-total-monthly').textContent = totalMonthly.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+                            document.getElementById('manpower-total-3year').textContent = (totalMonthly * 36).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+                            // Optionally, update the rest of the UI if needed
+                            updateCharts(calculateFinancials(parseInt(document.getElementById('vehicle-slider').value, 10)), parseInt(document.getElementById('vehicle-slider').value, 10));
+                        } else {
+                            event.target.value = config.manpower[role][field];
+                        }
+                    });
+                });
+
+
+                const maintenanceTableBody = document.getElementById('maintenance-table-body');
+                maintenanceTableBody.innerHTML = '';
+                const totalMonths = config.durationYears * config.monthsInYear;
+                const currentNumVehicles = parseInt(document.getElementById('vehicle-slider').value, 10);
+
+                const maintenanceItems = [
+                    { label: 'Regular Maintenance (per month per vehicle)', key: 'maintenancePerMonth' },
+                    { label: 'Battery Replacement (per vehicle)', key: 'battery' },
+                    { label: 'Tire Replacement (per vehicle)', key: 'tyre' },
+                    { label: 'Insurance (per year per vehicle)', key: 'insurancePerYear' },
+                    { label: 'VTS (Initial per vehicle)', key: 'vtsInitial' },
+                    { label: 'VTS (Monthly per vehicle)', key: 'vtsMonthly' },
+                    { label: 'Commercial Tax (per vehicle)', key: 'commercialTax' }
+                ];
+
+                let currentTotalFleetCostForAllMaintenance = 0;
+
+                maintenanceItems.forEach(item => {
+                    let totalFleetCostForItem;
+                    const perUnitCost = config.costs[item.key]; 
+
+                    if (item.key === 'maintenancePerMonth' || item.key === 'vtsMonthly') {
+                        totalFleetCostForItem = (perUnitCost * totalMonths) * currentNumVehicles;
+                    } else if (item.key === 'insurancePerYear') {
+                        totalFleetCostForItem = (perUnitCost * config.durationYears) * currentNumVehicles;
+                    } else {
+                        totalFleetCostForItem = perUnitCost * currentNumVehicles;
+                    }
+                    
+                    currentTotalFleetCostForAllMaintenance += totalFleetCostForItem;
+
+                    const row = `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${item.label}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                                <input type="number" class="table-input w-32" value="${perUnitCost}" data-item-key="${item.key}">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${totalFleetCostForItem.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                        </tr>`;
+                    maintenanceTableBody.innerHTML += row;
+                });
+
+                // Attach event listeners for maintenance inputs AFTER they are added to DOM
+                maintenanceTableBody.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('change', (event) => {
+                        const itemKey = event.target.dataset.itemKey;
+                        const newValue = parseFloat(event.target.value);
+                        if (!isNaN(newValue) && newValue >= 0) {
+                            config.costs[itemKey] = newValue;
+                            updateUI(parseInt(document.getElementById('vehicle-slider').value, 10));
+                        } else {
+                            event.target.value = config.costs[itemKey];
+                        }
+                    });
+                });
+
+                const totalRowMaintenance = `<tr class="bg-gray-50 font-bold"><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" colspan="2">Total Fleet Maintenance Cost</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${currentTotalFleetCostForAllMaintenance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td></tr>`;
+                maintenanceTableBody.innerHTML += totalRowMaintenance;
+            };
+
+            const initializeCharts = () => {
+                const initialData = calculateFinancials(initialVehicleCount);
+                
+                const costCtx = document.getElementById('costBreakdownChart').getContext('2d');
+                costChart = new Chart(costCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Vehicle Purchase', 'Maintenance', 'Charging', 'Manpower', 'Technology'],
+                        datasets: [{
+                            data: [
+                                initialData.capex,
+                                initialData.totalMaintenanceCost,
+                                initialData.totalChargingCost,
+                                initialData.totalManpowerCost,
+                                initialData.technologyCost
+                            ],
+                            backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed) {
+                                            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                            const percentage = ((context.parsed / total) * 100).toFixed(2);
+                                            label += `${formatCurrency(context.parsed)} (${percentage}%)`;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const revenueCtx = document.getElementById('revenueCostChart').getContext('2d');
+                revenueChart = new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [], 
+                        datasets: [
+                            {
+                                label: 'Total Revenue',
+                                data: [],
+                                borderColor: 'rgba(16, 185, 129, 1)',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Total Cost',
+                                data: [],
+                                borderColor: 'rgba(239, 68, 68, 1)',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                fill: true,
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return value.toLocaleString('en-IN', { style: 'currency', currency: 'INR', notation: 'compact' });
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+            
+            window.toggleAccordion = (id) => {
+                const element = document.getElementById(id);
+                const icon = document.getElementById(id.replace('-content', '-icon'));
+                if (element.style.maxHeight) {
+                    element.style.maxHeight = null;
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    element.style.maxHeight = element.scrollHeight + "px";
+                    icon.style.transform = 'rotate(45deg)';
+                }
+            };
+            
+            document.getElementById('vehicle-slider').addEventListener('input', (event) => {
+                const vehicleCount = parseInt(event.target.value, 10);
+                document.getElementById('vehicle-count-display').textContent = vehicleCount;
+                updateUI(vehicleCount);
+            });
+
+            // LLM Integration
+            const llmOutputContainer = document.getElementById('llm-output-container');
+            const llmLoading = document.getElementById('llm-loading');
+            const llmResponseDiv = document.getElementById('llm-response');
+
+            const callGeminiAPI = async (prompt) => {
+                llmOutputContainer.classList.remove('hidden');
+                llmLoading.classList.remove('hidden');
+                llmResponseDiv.textContent = ''; // Clear previous response
+
+                try {
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        llmResponseDiv.textContent = text;
+                    } else {
+                        llmResponseDiv.textContent = 'Error: Could not get a valid response from the AI.';
+                        console.error('Gemini API response structure unexpected:', result);
+                    }
+                } catch (error) {
+                    llmResponseDiv.textContent = `Error: ${error.message}. Please try again.`;
+                    console.error('Error calling Gemini API:', error);
+                } finally {
+                    llmLoading.classList.add('hidden');
+                }
+            };
+
+            document.getElementById('generate-summary-btn').addEventListener('click', () => {
+                const currentVehicleCount = parseInt(document.getElementById('vehicle-slider').value, 10);
+                const data = calculateFinancials(currentVehicleCount);
+
+                const totalMonths = config.durationYears * config.monthsInYear;
+                const manpowerCostPerMonth = Object.values(config.manpower).reduce((sum, role) => sum + (role.count * role.salary), 0);
+                
+                const maintenanceCostsBreakdown = [
+                    `Regular Maintenance (per month per vehicle): ${formatCurrency(config.costs.maintenancePerMonth)} -> Total Fleet: ${formatCurrency((config.costs.maintenancePerMonth * totalMonths) * currentVehicleCount)}`,
+                    `Battery Replacement (per vehicle): ${formatCurrency(config.costs.battery)} -> Total Fleet: ${formatCurrency(config.costs.battery * currentVehicleCount)}`,
+                    `Tire Replacement (per vehicle): ${formatCurrency(config.costs.tyre)} -> Total Fleet: ${formatCurrency(config.costs.tyre * currentVehicleCount)}`,
+                    `Insurance (per year per vehicle): ${formatCurrency(config.costs.insurancePerYear)} -> Total Fleet: ${formatCurrency((config.costs.insurancePerYear * config.durationYears) * currentVehicleCount)}`,
+                    `VTS (Initial per vehicle): ${formatCurrency(config.costs.vtsInitial)} -> Total Fleet: ${formatCurrency((config.costs.vtsInitial + (config.costs.vtsMonthly * totalMonths)) * currentVehicleCount)}`,
+                    `Commercial Tax (per vehicle): ${formatCurrency(config.costs.commercialTax)} -> Total Fleet: ${formatCurrency(config.costs.commercialTax * currentVehicleCount)}`
+                ].join('\n- ');
+
+                const prompt = `
+                Analyze the following financial data for a vehicle rental business with ${currentVehicleCount} vehicles over a ${config.durationYears}-year period and provide a concise summary, key insights, and overall financial health assessment.
+
+                --- Financial Data ---
+                Total Project Cost: ${formatCurrency(data.totalCost)}
+                Total Projected Revenue: ${formatCurrency(data.totalRevenue)}
+                Projected Net Profit/Loss: ${formatCurrency(data.profitLoss)}
+                Monthly Operating Cost: ${formatCurrency(data.monthlyCost)}
+
+                Cost Breakdown:
+                - Vehicle Procurement (CAPEX): ${formatCurrency(data.capex)}
+                - Total Maintenance Cost (Fleet): ${formatCurrency(data.totalMaintenanceCost)}
+                - Total Charging Cost: ${formatCurrency(data.totalChargingCost)}
+                - Total Manpower Cost: ${formatCurrency(data.totalManpowerCost)} (Monthly: ${formatCurrency(manpowerCostPerMonth)})
+                - Technology Development Cost: ${formatCurrency(data.technologyCost)}
+
+                Revenue Streams:
+                - Rental Income (per vehicle per month): ${formatCurrency(config.revenue.rentalPerVehiclePerMonth)}
+                - Raider Model Income (per vehicle per month): ${formatCurrency(config.revenue.raiderPerVehiclePerMonth)}
+
+                Detailed Maintenance Costs (Per-Unit and Total Fleet over 3 years):
+                - ${maintenanceCostsBreakdown}
+
+                Manpower Details (Count and Monthly Salary):
+                ${Object.entries(config.manpower).map(([role, details]) => `- ${role}: Count=${details.count}, Salary/Month=${formatCurrency(details.salary)}`).join('\n')}
+
+                --- Request ---
+                Provide a summary focusing on:
+                1. Overall financial outcome (profit/loss).
+                2. The largest cost drivers.
+                3. Key revenue contributors.
+                4. A brief assessment of the financial health.
+                `;
+                callGeminiAPI(prompt);
+            });
+
+            document.getElementById('suggest-optimization-btn').addEventListener('click', () => {
+                const prompt = `
+                Provide 5-7 high-level, actionable strategies for cost optimization in a vehicle rental business. Focus on different areas like operations, maintenance, technology, and human resources.
+                `;
+                callGeminiAPI(prompt);
+            });
+
+            initializeCharts();
+            updateUI(initialVehicleCount);
+        });
+    </script>
+</body>
+</html>
