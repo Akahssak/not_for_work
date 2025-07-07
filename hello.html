@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +6,9 @@
     <title>Vehicle Rental Business - Financial Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             background-color: #F7F9FB;
@@ -214,6 +217,9 @@
                 <button id="suggest-optimization-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
                     ✨ Suggest Cost Optimization
                 </button>
+                <button id="download-pdf-btn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+                    📄 Download PDF Report
+                </button>
             </div>
             <div id="llm-output-container" class="hidden">
                 <div id="llm-loading" class="text-center text-gray-500 hidden">
@@ -263,9 +269,12 @@
 
             let costChart, revenueChart;
 
-            const formatCurrency = (value) => {
+            const formatCurrency = (value, forceINR = false) => {
                 if (typeof value !== 'number') {
                     return 'N/A'; // Handle non-numeric values gracefully
+                }
+                if (forceINR) {
+                    return `₹${value.toLocaleString('en-IN')}`;
                 }
                 if (Math.abs(value) >= 10000000) {
                     return `₹${(value / 10000000).toFixed(2)} Cr`;
@@ -698,6 +707,171 @@
 
             initializeCharts();
             updateUI(initialVehicleCount);
+
+            // PDF Download Logic
+            document.getElementById('download-pdf-btn').addEventListener('click', async () => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+                const pageWidth = doc.internal.pageSize.getWidth();
+                let y = 40;
+
+                // Title
+                doc.setFontSize(18);
+                doc.text('Fleet Operations Financial Projection', pageWidth / 2, y, { align: 'center' });
+                y += 30;
+                doc.setFontSize(12);
+                doc.text('A 3-Year Forecast for a 100-Vehicle Fleet', pageWidth / 2, y, { align: 'center' });
+                y += 30;
+
+                // 1. Project Overview
+                doc.setFontSize(14);
+                doc.text('1. Project Overview', 40, y);
+                y += 18;
+                doc.setFontSize(10);
+                doc.text('\u2022 Objective: 3PL & Rental Project for 2W Electric Vehicles', 50, y); y += 14;
+                doc.text('\u2022 Vehicle Models: Ampere, Lectric', 50, y); y += 14;
+                doc.text('\u2022 Range, Charging Types, Vehicle Cost', 50, y); y += 18;
+
+                // 2. Capital and Charging Infrastructure
+                doc.setFontSize(14);
+                doc.text('2. Capital and Charging Infrastructure', 40, y); y += 18;
+                const vehicleCount = parseInt(document.getElementById('vehicle-slider').value, 10);
+                const data = calculateFinancials(vehicleCount);
+                doc.setFontSize(10);
+                doc.text(`\u2022 Procurement Cost (${vehicleCount} vehicles): ${formatCurrency(data.capex)}`, 50, y); y += 14;
+                doc.text('\u2022 Charging Facilities (Sun Mobility & Mooving)', 50, y); y += 14;
+                doc.text(`\u2022 3-Year Charging Cost Breakdown: ${formatCurrency(data.totalChargingCost)}`, 50, y); y += 18;
+
+                // 3. Maintenance Cost Analysis
+                doc.setFontSize(14);
+                doc.text('3. Maintenance Cost Analysis', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text('\u2022 Breakdown: Monthly Maintenance, Battery, Tyre, Insurance, VTS, Permits', 50, y); y += 14;
+                doc.text(`\u2022 3-Year Maintenance Projection: ${formatCurrency(data.totalMaintenanceCost)}`, 50, y); y += 14;
+                doc.text('\u2022 Per KM Cost Calculation: (Not shown)', 50, y); y += 18;
+
+                // 4. Manpower Budget
+                doc.setFontSize(14);
+                doc.text('4. Manpower Budget', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text('\u2022 Staff Designation, Count, Monthly Cost', 50, y); y += 14;
+                doc.text('\u2022 Additional Roles (Data Analyst, Sales, Customer Support)', 50, y); y += 14;
+                doc.text(`\u2022 3-Year Cost Summary: ${formatCurrency(data.totalManpowerCost)}`, 50, y); y += 18;
+
+                // Manpower Table
+                doc.setFontSize(11);
+                doc.text('   Manpower Table:', 50, y); y += 12;
+                let manpowerRows = [['Role', 'Count', 'Salary/Month', 'Total Monthly', 'Total 3-Year']];
+                Object.entries(config.manpower).forEach(([role, details]) => {
+                    const monthly = details.count * details.salary;
+                    manpowerRows.push([
+                        role,
+                        details.count.toString(),
+                        formatCurrency(details.salary),
+                        formatCurrency(monthly),
+                        formatCurrency(monthly * 36)
+                    ]);
+                });
+                // Add total row
+                let totalMonthly = Object.values(config.manpower).reduce((sum, d) => sum + d.count * d.salary, 0);
+                manpowerRows.push(['Total', '', '', formatCurrency(totalMonthly), formatCurrency(totalMonthly * 36)]);
+                doc.autoTable({
+                    head: [manpowerRows[0]],
+                    body: manpowerRows.slice(1),
+                    startY: y,
+                    margin: { left: 50, right: 30 },
+                    styles: { fontSize: 9 },
+                    theme: 'grid',
+                });
+                y = doc.lastAutoTable.finalY + 10;
+
+                // 5. Technology Development
+                doc.setFontSize(14);
+                doc.text('5. Technology Development', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text('\u2022 Platform Apps: Rider, Admin, Call Center', 50, y); y += 14;
+                doc.text('\u2022 Tentative Budget: \u20B910 Lakhs', 50, y); y += 18;
+
+                // 6. Total Budget Summary
+                doc.setFontSize(14);
+                doc.text('6. Total Budget Summary', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text(`\u2022 Monthly Cost: ${formatCurrency(data.monthlyCost)}`, 50, y); y += 14;
+                doc.text(`\u2022 Weekly Cost: ${formatCurrency(data.monthlyCost / 4.33)}`, 50, y); y += 14;
+                doc.text(`\u2022 Per Vehicle (3-Year): ${formatCurrency(data.totalCost / vehicleCount)}`, 50, y); y += 18;
+
+                // 7. Revenue Projection
+                doc.setFontSize(14);
+                doc.text('7. Revenue Projection', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text(`\u2022 Rental Income (\u20B95,000–\u20B96,000/vehicle/month)`, 50, y); y += 14;
+                doc.text(`\u2022 Raider Model Revenue (\u20B936,000/month/vehicle)`, 50, y); y += 14;
+                doc.text('\u2022 Security Deposit (refundable)', 50, y); y += 18;
+
+                // 8. PNL (Profit & Loss Statement)
+                doc.setFontSize(14);
+                doc.text('8. PNL (Profit & Loss Statement)', 40, y); y += 18;
+                doc.setFontSize(10);
+                doc.text(`\u2022 Total Income: ${formatCurrency(data.totalRevenue)}`, 50, y); y += 14;
+                doc.text(`\u2022 Total Cost: ${formatCurrency(data.totalCost)}`, 50, y); y += 14;
+                doc.text(`\u2022 Profit/Loss Over 3 Years: ${formatCurrency(data.profitLoss)}`, 50, y); y += 18;
+
+                // Add Cost Breakdown Chart
+                const costChartCanvas = document.getElementById('costBreakdownChart');
+                const costChartImg = await html2canvas(costChartCanvas).then(canvas => canvas.toDataURL('image/png'));
+                doc.setFontSize(12);
+                doc.text('   Cost Breakdown Chart:', 50, y); y += 8;
+                doc.addImage(costChartImg, 'PNG', 50, y, 200, 200);
+
+                // Add Revenue vs Cost Chart
+                const revenueChartCanvas = document.getElementById('revenueCostChart');
+                const revenueChartImg = await html2canvas(revenueChartCanvas).then(canvas => canvas.toDataURL('image/png'));
+                doc.text('   Revenue vs Cost Chart:', 300, y); 
+                doc.addImage(revenueChartImg, 'PNG', 300, y + 8, 200, 200);
+                y += 210;
+
+                // Maintenance Table
+                doc.setFontSize(11);
+                doc.text('   Maintenance Table:', 50, y); y += 12;
+                let maintenanceRows = [['Cost Item', 'Per-Unit Cost', 'Total Fleet Cost (3 Years)']];
+                const totalMonths = config.durationYears * config.monthsInYear;
+                const currentNumVehicles = vehicleCount;
+                const maintenanceItems = [
+                    { label: 'Regular Maintenance (per month per vehicle)', key: 'maintenancePerMonth' },
+                    { label: 'Battery Replacement (per vehicle)', key: 'battery' },
+                    { label: 'Tire Replacement (per vehicle)', key: 'tyre' },
+                    { label: 'Insurance (per year per vehicle)', key: 'insurancePerYear' },
+                    { label: 'VTS (Initial per vehicle)', key: 'vtsInitial' },
+                    { label: 'VTS (Monthly per vehicle)', key: 'vtsMonthly' },
+                    { label: 'Commercial Tax (per vehicle)', key: 'commercialTax' }
+                ];
+                maintenanceItems.forEach(item => {
+                    let totalFleetCostForItem;
+                    const perUnitCost = config.costs[item.key];
+                    if (item.key === 'maintenancePerMonth' || item.key === 'vtsMonthly') {
+                        totalFleetCostForItem = (perUnitCost * totalMonths) * currentNumVehicles;
+                    } else if (item.key === 'insurancePerYear') {
+                        totalFleetCostForItem = (perUnitCost * config.durationYears) * currentNumVehicles;
+                    } else {
+                        totalFleetCostForItem = perUnitCost * currentNumVehicles;
+                    }
+                    maintenanceRows.push([
+                        item.label,
+                        formatCurrency(perUnitCost),
+                        formatCurrency(totalFleetCostForItem)
+                    ]);
+                });
+                doc.autoTable({
+                    head: [maintenanceRows[0]],
+                    body: maintenanceRows.slice(1),
+                    startY: y,
+                    margin: { left: 50, right: 30 },
+                    styles: { fontSize: 9 },
+                    theme: 'grid',
+                });
+
+                doc.save('Fleet_Operations_Financial_Projection.pdf');
+            });
         });
     </script>
 </body>
